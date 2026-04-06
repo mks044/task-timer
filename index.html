@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Timer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface-2: #1a1a26;
+      --border: #2a2a3a;
+      --text: #e8e8f0;
+      --text-dim: #8888a0;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.3);
+      --green: #22c55e;
+      --green-glow: rgba(34, 197, 94, 0.3);
+      --orange: #f59e0b;
+      --orange-glow: rgba(245, 158, 11, 0.3);
+      --red: #ef4444;
+      --break-color: #06b6d4;
+      --break-glow: rgba(6, 182, 212, 0.3);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    header .stats {
+      display: flex;
+      gap: 20px;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    header .stats span strong {
+      color: var(--text);
+    }
+
+    /* Active Timer Banner */
+    .active-timer-banner {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      box-shadow: 0 0 20px var(--accent-glow);
+      border-radius: 16px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .active-timer-banner.active { display: block; }
+    .active-timer-banner.on-break { border-color: var(--break-color); box-shadow: 0 0 20px var(--break-glow); }
+
+    .active-timer-banner .timer-task-name {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .active-timer-banner .timer-display {
+      font-size: 56px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 2px;
+      margin-bottom: 4px;
+    }
+
+    .active-timer-banner .timer-allocated {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    .active-timer-banner .timer-controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .timer-progress-bar {
+      width: 100%;
+      height: 4px;
+      background: var(--surface-2);
+      border-radius: 2px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .timer-progress-bar .fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 1s linear;
+    }
+
+    .active-timer-banner.on-break .timer-progress-bar .fill { background: var(--break-color); }
+    .active-timer-banner.overtime .timer-display { color: var(--red); }
+    .active-timer-banner.overtime .timer-progress-bar .fill { background: var(--red); }
+
+    /* Buttons */
+    button {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    button:hover { background: var(--border); }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    button.primary:hover { opacity: 0.9; }
+
+    button.danger { color: var(--red); }
+    button.danger:hover { background: rgba(239, 68, 68, 0.1); }
+
+    button.complete-btn { color: var(--green); }
+    button.complete-btn:hover { background: rgba(34, 197, 94, 0.1); }
+
+    /* Sections */
+    .section {
+      margin-bottom: 28px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .section-header h2 {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+    }
+
+    .section-header .count {
+      font-size: 12px;
+      color: var(--text-dim);
+      background: var(--surface-2);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    /* Task Cards */
+    .task-list { display: flex; flex-direction: column; gap: 6px; }
+
+    .task-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: all 0.15s;
+    }
+
+    .task-card:hover { border-color: #3a3a4a; }
+    .task-card.is-break { border-left: 3px solid var(--break-color); }
+    .task-card.running { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+
+    .task-card .task-info { flex: 1; min-width: 0; }
+
+    .task-card .task-name {
+      font-size: 15px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-card .task-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .task-card .task-time-badge {
+      background: var(--surface-2);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .task-card .task-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .task-card .task-actions button {
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
+    .task-card.completed-card {
+      opacity: 0.5;
+    }
+
+    .task-card.completed-card .task-name {
+      text-decoration: line-through;
+    }
+
+    /* Add Task Form */
+    .add-task-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .add-task-bar input, .add-task-bar select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .add-task-bar input:focus, .add-task-bar select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .add-task-bar input[type="text"] { flex: 1; }
+    .add-task-bar input[type="number"] { width: 80px; text-align: center; }
+    .add-task-bar select { width: 120px; }
+
+    option { background: var(--surface); }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 32px;
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    /* Completed section toggle */
+    .toggle-completed {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-completed:hover { color: var(--text); }
+
+    /* Drag hint */
+    .task-card .drag-handle {
+      cursor: grab;
+      color: var(--text-dim);
+      font-size: 14px;
+      padding: 0 4px;
+    }
+
+    .task-card .drag-handle:active { cursor: grabbing; }
+    .task-card.dragging { opacity: 0.4; }
+    .task-card.drag-over { border-color: var(--accent); }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .add-task-bar { flex-wrap: wrap; }
+      .add-task-bar input[type="text"] { width: 100%; }
+      header { flex-direction: column; gap: 12px; align-items: flex-start; }
+      .active-timer-banner .timer-display { font-size: 40px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Task Timer</h1>
+      <div class="stats">
+        <span>Today: <strong id="stat-total">0h 0m</strong></span>
+        <span>Tasks done: <strong id="stat-done">0</strong></span>
+      </div>
+    </header>
+
+    <!-- Active Timer -->
+    <div class="active-timer-banner" id="active-timer">
+      <div class="timer-task-name" id="timer-task-name"></div>
+      <div class="timer-display" id="timer-display">00:00</div>
+      <div class="timer-progress-bar"><div class="fill" id="timer-progress"></div></div>
+      <div class="timer-allocated" id="timer-allocated"></div>
+      <div class="timer-controls">
+        <button id="timer-pause-btn" onclick="togglePause()">Pause</button>
+        <button class="complete-btn" onclick="completeActive()">Complete</button>
+        <button class="danger" onclick="stopTimer()">Stop</button>
+      </div>
+    </div>
+
+    <!-- Add Task -->
+    <div class="add-task-bar">
+      <input type="text" id="task-name-input" placeholder="Task name..." onkeydown="if(event.key==='Enter')addTask()">
+      <input type="number" id="task-minutes-input" placeholder="min" min="1" value="25">
+      <select id="task-type-input">
+        <option value="task">Task</option>
+        <option value="break">Break</option>
+      </select>
+      <button class="primary" onclick="addTask()">Add</button>
+    </div>
+
+    <!-- Scheduled -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Scheduled</h2>
+        <span class="count" id="scheduled-count">0</span>
+      </div>
+      <div class="task-list" id="scheduled-list"></div>
+    </div>
+
+    <!-- Backlog -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Backlog</h2>
+        <span class="count" id="backlog-count">0</span>
+      </div>
+      <div class="task-list" id="backlog-list"></div>
+    </div>
+
+    <!-- Completed -->
+    <div class="section">
+      <div class="section-header">
+        <h2 class="toggle-completed" onclick="toggleCompleted()">Completed <span id="completed-arrow">+</span></h2>
+        <span class="count" id="completed-count">0</span>
+      </div>
+      <div class="task-list" id="completed-list" style="display:none"></div>
+    </div>
+  </div>
+
+<script>
+// ---- State ----
+let tasks = JSON.parse(localStorage.getItem('taskTimerTasks') || '[]');
+let activeTaskId = null;
+let timerInterval = null;
+let timerElapsed = 0; // seconds
+let timerPaused = false;
+let showCompleted = false;
+
+// ---- Persistence ----
+function save() {
+  localStorage.setItem('taskTimerTasks', JSON.stringify(tasks));
+}
+
+// ---- Task CRUD ----
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+function addTask() {
+  const nameEl = document.getElementById('task-name-input');
+  const minEl = document.getElementById('task-minutes-input');
+  const typeEl = document.getElementById('task-type-input');
+
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); return; }
+
+  const minutes = parseInt(minEl.value) || 25;
+  const type = typeEl.value;
+
+  tasks.push({
+    id: genId(),
+    name: type === 'break' ? (name || 'Break') : name,
+    minutes,
+    type,
+    status: 'scheduled', // scheduled | backlog | completed
+    timeSpent: 0, // seconds actually tracked
+    createdAt: Date.now(),
+    completedAt: null,
+  });
+
+  nameEl.value = '';
+  minEl.value = '25';
+  typeEl.value = 'task';
+  nameEl.focus();
+  save();
+  render();
+}
+
+function deleteTask(id) {
+  if (activeTaskId === id) stopTimer();
+  tasks = tasks.filter(t => t.id !== id);
+  save();
+  render();
+}
+
+function moveToBacklog(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.status = 'backlog'; save(); render(); }
+}
+
+function moveToScheduled(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.status = 'scheduled'; save(); render(); }
+}
+
+function completeTask(id) {
+  if (activeTaskId === id) stopTimer();
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.status = 'completed'; t.completedAt = Date.now(); save(); render(); }
+}
+
+function uncompleteTask(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.status = 'scheduled'; t.completedAt = null; save(); render(); }
+}
+
+// ---- Timer ----
+function startTimer(id) {
+  if (activeTaskId) stopTimer();
+  const t = tasks.find(t => t.id === id);
+  if (!t) return;
+
+  activeTaskId = id;
+  timerElapsed = t.timeSpent || 0;
+  timerPaused = false;
+
+  updateTimerBanner();
+
+  timerInterval = setInterval(() => {
+    if (!timerPaused) {
+      timerElapsed++;
+      t.timeSpent = timerElapsed;
+      if (timerElapsed % 10 === 0) save(); // save every 10s
+      updateTimerBanner();
+    }
+  }, 1000);
+
+  render();
+}
+
+function stopTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  const t = tasks.find(t => t.id === activeTaskId);
+  if (t) t.timeSpent = timerElapsed;
+  activeTaskId = null;
+  timerInterval = null;
+  timerElapsed = 0;
+  timerPaused = false;
+  save();
+  render();
+  updateTimerBanner();
+}
+
+function togglePause() {
+  timerPaused = !timerPaused;
+  document.getElementById('timer-pause-btn').textContent = timerPaused ? 'Resume' : 'Pause';
+}
+
+function completeActive() {
+  if (activeTaskId) {
+    const id = activeTaskId;
+    stopTimer();
+    completeTask(id);
+  }
+}
+
+function updateTimerBanner() {
+  const banner = document.getElementById('active-timer');
+  if (!activeTaskId) {
+    banner.classList.remove('active');
+    document.title = 'Task Timer';
+    return;
+  }
+
+  const t = tasks.find(t => t.id === activeTaskId);
+  if (!t) return;
+
+  banner.classList.add('active');
+  banner.classList.toggle('on-break', t.type === 'break');
+
+  const allocated = t.minutes * 60;
+  const overtime = timerElapsed > allocated;
+  banner.classList.toggle('overtime', overtime);
+
+  document.getElementById('timer-task-name').textContent = t.name;
+  document.getElementById('timer-display').textContent = formatTime(timerElapsed);
+  document.getElementById('timer-allocated').textContent = overtime
+    ? `Over by ${formatTime(timerElapsed - allocated)} (allocated ${t.minutes}m)`
+    : `${formatTime(allocated - timerElapsed)} remaining of ${t.minutes}m`;
+
+  const pct = Math.min((timerElapsed / allocated) * 100, 100);
+  document.getElementById('timer-progress').style.width = pct + '%';
+
+  // Update page title with timer
+  document.title = `${formatTime(timerElapsed)} - ${t.name}`;
+}
+
+// ---- Drag & Drop (reorder scheduled) ----
+let dragId = null;
+
+function onDragStart(e, id) {
+  dragId = id;
+  e.target.closest('.task-card').classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onDragEnd(e) {
+  dragId = null;
+  document.querySelectorAll('.task-card').forEach(c => c.classList.remove('dragging', 'drag-over'));
+}
+
+function onDragOver(e, id) {
+  e.preventDefault();
+  if (id !== dragId) e.target.closest('.task-card').classList.add('drag-over');
+}
+
+function onDragLeave(e) {
+  e.target.closest('.task-card')?.classList.remove('drag-over');
+}
+
+function onDrop(e, targetId) {
+  e.preventDefault();
+  document.querySelectorAll('.task-card').forEach(c => c.classList.remove('drag-over'));
+  if (!dragId || dragId === targetId) return;
+
+  const scheduled = tasks.filter(t => t.status === 'scheduled');
+  const fromIdx = scheduled.findIndex(t => t.id === dragId);
+  const toIdx = scheduled.findIndex(t => t.id === targetId);
+  if (fromIdx === -1 || toIdx === -1) return;
+
+  // Reorder in the main tasks array
+  const fromTask = scheduled[fromIdx];
+  const toTask = scheduled[toIdx];
+  const fromMainIdx = tasks.indexOf(fromTask);
+  const toMainIdx = tasks.indexOf(toTask);
+  tasks.splice(fromMainIdx, 1);
+  const newToIdx = tasks.indexOf(toTask);
+  tasks.splice(fromMainIdx < toMainIdx ? newToIdx + 1 : newToIdx, 0, fromTask);
+
+  dragId = null;
+  save();
+  render();
+}
+
+// ---- Render ----
+function render() {
+  const scheduled = tasks.filter(t => t.status === 'scheduled');
+  const backlog = tasks.filter(t => t.status === 'backlog');
+  const completed = tasks.filter(t => t.status === 'completed').sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+
+  document.getElementById('scheduled-count').textContent = scheduled.length;
+  document.getElementById('backlog-count').textContent = backlog.length;
+  document.getElementById('completed-count').textContent = completed.length;
+
+  // Stats
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const todayCompleted = completed.filter(t => t.completedAt && t.completedAt >= todayStart.getTime());
+  const totalMinutes = Math.floor(todayCompleted.reduce((s, t) => s + (t.timeSpent || 0), 0) / 60);
+  // Also count currently running timer
+  const activeTime = activeTaskId ? timerElapsed : 0;
+  const totalWithActive = totalMinutes + Math.floor(activeTime / 60);
+  const h = Math.floor(totalWithActive / 60);
+  const m = totalWithActive % 60;
+  document.getElementById('stat-total').textContent = `${h}h ${m}m`;
+  document.getElementById('stat-done').textContent = todayCompleted.length;
+
+  renderList('scheduled-list', scheduled, 'scheduled');
+  renderList('backlog-list', backlog, 'backlog');
+  renderList('completed-list', completed, 'completed');
+}
+
+function renderList(containerId, items, section) {
+  const el = document.getElementById(containerId);
+  if (!items.length) {
+    el.innerHTML = `<div class="empty-state">${section === 'scheduled' ? 'No tasks scheduled. Add one above.' : section === 'backlog' ? 'Backlog is empty.' : 'No completed tasks yet.'}</div>`;
+    return;
+  }
+
+  el.innerHTML = items.map(t => {
+    const isRunning = t.id === activeTaskId;
+    const isBreak = t.type === 'break';
+    const classes = ['task-card', isRunning && 'running', isBreak && 'is-break', section === 'completed' && 'completed-card'].filter(Boolean).join(' ');
+
+    const timeSpentStr = t.timeSpent > 0 ? formatTime(t.timeSpent) : '';
+    const badge = section === 'completed'
+      ? (timeSpentStr || `${t.minutes}m`)
+      : `${t.minutes}m${timeSpentStr ? ' / ' + timeSpentStr : ''}`;
+
+    let actions = '';
+    if (section === 'scheduled') {
+      actions = isRunning
+        ? ''
+        : `<button onclick="startTimer('${t.id}')">${isBreak ? 'Start' : 'Start'}</button>
+           <button class="complete-btn" onclick="completeTask('${t.id}')">Done</button>
+           <button onclick="moveToBacklog('${t.id}')">Backlog</button>
+           <button class="danger" onclick="deleteTask('${t.id}')">Del</button>`;
+    } else if (section === 'backlog') {
+      actions = `<button onclick="moveToScheduled('${t.id}')">Schedule</button>
+                 <button class="danger" onclick="deleteTask('${t.id}')">Del</button>`;
+    } else {
+      actions = `<button onclick="uncompleteTask('${t.id}')">Undo</button>
+                 <button class="danger" onclick="deleteTask('${t.id}')">Del</button>`;
+    }
+
+    const draggable = section === 'scheduled' ? `draggable="true" ondragstart="onDragStart(event,'${t.id}')" ondragend="onDragEnd(event)" ondragover="onDragOver(event,'${t.id}')" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${t.id}')"` : '';
+
+    return `<div class="${classes}" ${draggable}>
+      ${section === 'scheduled' ? '<span class="drag-handle">&#9776;</span>' : ''}
+      <div class="task-info">
+        <div class="task-name">${escHtml(t.name)}</div>
+        <div class="task-meta">
+          <span>${isBreak ? 'Break' : 'Task'}</span>
+          ${section === 'completed' && t.completedAt ? `<span>${new Date(t.completedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>` : ''}
+        </div>
+      </div>
+      <div class="task-time-badge">${badge}</div>
+      <div class="task-actions">${actions}</div>
+    </div>`;
+  }).join('');
+}
+
+// ---- Helpers ----
+function formatTime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function toggleCompleted() {
+  showCompleted = !showCompleted;
+  document.getElementById('completed-list').style.display = showCompleted ? 'flex' : 'none';
+  document.getElementById('completed-arrow').textContent = showCompleted ? '-' : '+';
+}
+
+// ---- Init ----
+render();
+</script>
+</body>
+</html>
