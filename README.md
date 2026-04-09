@@ -2,6 +2,8 @@
 
 A minimal, browser-based task timer for tracking focused work sessions. No accounts, no servers — everything runs locally in your browser using localStorage.
 
+![Task Timer screenshot](screenshot.png)
+
 ## Features
 
 - **Pomodoro-style time tracking** — set a time allocation per task and track how long you actually spend
