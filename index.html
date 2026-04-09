@@ -248,7 +248,8 @@
     .add-task-bar {
       display: flex;
       gap: 8px;
-      margin-bottom: 24px;
+      margin-bottom: 8px;
+      align-items: center;
     }
 
     .add-task-bar input, .add-task-bar select {
@@ -267,10 +268,70 @@
     }
 
     .add-task-bar input[type="text"] { flex: 1; }
-    .add-task-bar input[type="number"] { width: 80px; text-align: center; }
     .add-task-bar select { width: 120px; }
 
     option { background: var(--surface); }
+
+    /* Time Picker */
+    .time-picker-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 24px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .time-picker-row .label {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-right: 4px;
+    }
+
+    .time-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 5px 12px;
+      border-radius: 16px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    .time-chip:hover { border-color: #4a4a5a; color: var(--text); }
+    .time-chip.selected { background: var(--accent); border-color: var(--accent); color: white; }
+
+    .time-picker-row input[type="number"] {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 8px;
+      border-radius: 8px;
+      font-size: 13px;
+      width: 56px;
+      text-align: center;
+      font-family: inherit;
+    }
+
+    .time-picker-row input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* Inline edit */
+    .task-card .task-name.editing,
+    .task-card .task-time-badge.editing {
+      background: var(--surface-2);
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      padding: 2px 6px;
+      outline: none;
+      min-width: 40px;
+    }
+
+    .task-card .task-name { cursor: text; }
+    .task-card .task-time-badge { cursor: pointer; }
 
     /* Empty state */
     .empty-state {
@@ -299,6 +360,57 @@
     .task-card .drag-handle:active { cursor: grabbing; }
     .task-card.dragging { opacity: 0.4; }
     .task-card.drag-over { border-color: var(--accent); }
+
+    /* Notes indicator */
+    .notes-indicator {
+      color: var(--accent);
+      font-size: 11px;
+      margin-left: 4px;
+    }
+
+    /* Inline notes drawer */
+    .task-card-wrapper {
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      transition: border-color 0.15s;
+    }
+    .task-card-wrapper:hover { border-color: #3a3a4a; }
+    .task-card-wrapper.is-break { border-left: 3px solid var(--break-color); }
+    .task-card-wrapper.running { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+    .task-card-wrapper.completed-card { opacity: 0.5; }
+    .task-card-wrapper.completed-card .task-name { text-decoration: line-through; }
+
+    .task-card-wrapper .task-card {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+    .task-card-wrapper .task-card:hover { border: none; }
+
+    .task-notes-drawer {
+      display: none;
+      padding: 0 16px 14px 16px;
+      border-top: 1px solid var(--border);
+      margin-top: -2px;
+    }
+    .task-card-wrapper.notes-open .task-notes-drawer { display: block; padding-top: 12px; }
+    .task-notes-drawer textarea {
+      width: 100%;
+      min-height: 120px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.5;
+      resize: vertical;
+    }
+    .task-notes-drawer textarea:focus { outline: none; border-color: var(--accent); }
 
     /* Responsive */
     @media (max-width: 600px) {
@@ -335,12 +447,24 @@
     <!-- Add Task -->
     <div class="add-task-bar">
       <input type="text" id="task-name-input" placeholder="Task name..." onkeydown="if(event.key==='Enter')addTask()">
-      <input type="number" id="task-minutes-input" placeholder="min" min="1" value="25">
       <select id="task-type-input">
         <option value="task">Task</option>
         <option value="break">Break</option>
       </select>
       <button class="primary" onclick="addTask()">Add</button>
+    </div>
+    <div class="time-picker-row">
+      <span class="label">Time:</span>
+      <button class="time-chip" onclick="pickTime(5,this)">5m</button>
+      <button class="time-chip" onclick="pickTime(10,this)">10m</button>
+      <button class="time-chip" onclick="pickTime(15,this)">15m</button>
+      <button class="time-chip selected" onclick="pickTime(25,this)">25m</button>
+      <button class="time-chip" onclick="pickTime(45,this)">45m</button>
+      <button class="time-chip" onclick="pickTime(60,this)">1h</button>
+      <button class="time-chip" onclick="pickTime(90,this)">1.5h</button>
+      <button class="time-chip" onclick="pickTime(120,this)">2h</button>
+      <span class="label" style="margin-left:8px">or</span>
+      <input type="number" id="custom-minutes" placeholder="min" min="1" onfocus="clearChipSelection()" oninput="selectedMinutes=parseInt(this.value)||25">
     </div>
 
     <!-- Scheduled -->
@@ -371,9 +495,12 @@
     </div>
   </div>
 
+
 <script>
 // ---- State ----
 let tasks = JSON.parse(localStorage.getItem('taskTimerTasks') || '[]');
+
+
 let activeTaskId = null;
 let timerInterval = null;
 let timerElapsed = 0; // seconds
@@ -385,18 +512,32 @@ function save() {
   localStorage.setItem('taskTimerTasks', JSON.stringify(tasks));
 }
 
+// ---- Time Picker ----
+let selectedMinutes = 25;
+
+function pickTime(min, el) {
+  selectedMinutes = min;
+  document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('custom-minutes').value = '';
+}
+
+function clearChipSelection() {
+  document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('selected'));
+}
+
 // ---- Task CRUD ----
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
 function addTask() {
   const nameEl = document.getElementById('task-name-input');
-  const minEl = document.getElementById('task-minutes-input');
   const typeEl = document.getElementById('task-type-input');
 
   const name = nameEl.value.trim();
   if (!name) { nameEl.focus(); return; }
 
-  const minutes = parseInt(minEl.value) || 25;
+  const customMin = parseInt(document.getElementById('custom-minutes').value);
+  const minutes = customMin > 0 ? customMin : selectedMinutes;
   const type = typeEl.value;
 
   tasks.push({
@@ -404,18 +545,112 @@ function addTask() {
     name: type === 'break' ? (name || 'Break') : name,
     minutes,
     type,
-    status: 'scheduled', // scheduled | backlog | completed
-    timeSpent: 0, // seconds actually tracked
+    status: 'scheduled',
+    timeSpent: 0,
     createdAt: Date.now(),
     completedAt: null,
   });
 
   nameEl.value = '';
-  minEl.value = '25';
+  document.getElementById('custom-minutes').value = '';
   typeEl.value = 'task';
   nameEl.focus();
   save();
   render();
+}
+
+// ---- Inline Editing ----
+function disableDragOnCard(el) {
+  const card = el.closest('.task-card');
+  if (card) card.setAttribute('draggable', 'false');
+}
+
+function enableDragOnCard(el) {
+  const card = el.closest('.task-card');
+  if (card) card.setAttribute('draggable', 'true');
+}
+
+function editTaskName(id, el) {
+  const t = tasks.find(t => t.id === id);
+  if (!t) return;
+  disableDragOnCard(el);
+  el.contentEditable = true;
+  el.classList.add('editing');
+  // Use setTimeout so the browser fully switches to editable mode
+  setTimeout(() => {
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false); // cursor at end
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  }, 0);
+
+  function finish() {
+    el.contentEditable = false;
+    el.classList.remove('editing');
+    enableDragOnCard(el);
+    const newName = el.textContent.trim();
+    if (newName && newName !== t.name) {
+      t.name = newName;
+      save();
+    }
+    el.onblur = null;
+    el.onkeydown = null;
+    el.onmousedown = null;
+    render();
+  }
+
+  el.onblur = finish;
+  el.onkeydown = (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+    if (e.key === 'Escape') { el.textContent = t.name; el.blur(); }
+  };
+  el.onmousedown = (e) => e.stopPropagation();
+}
+
+function editTaskTime(id, el) {
+  const t = tasks.find(t => t.id === id);
+  if (!t) return;
+
+  const orig = el.textContent;
+  disableDragOnCard(el);
+  el.contentEditable = true;
+  el.classList.add('editing');
+  el.textContent = t.minutes;
+  setTimeout(() => {
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  }, 0);
+
+  function finish() {
+    el.contentEditable = false;
+    el.classList.remove('editing');
+    enableDragOnCard(el);
+    const val = parseInt(el.textContent);
+    if (val > 0 && val !== t.minutes) {
+      t.minutes = val;
+      save();
+    }
+    el.onblur = null;
+    el.onkeydown = null;
+    el.onmousedown = null;
+    render();
+    if (activeTaskId === id) updateTimerBanner();
+  }
+
+  el.onblur = finish;
+  el.onkeydown = (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+    if (e.key === 'Escape') { el.textContent = orig; el.blur(); }
+    if (e.key.length === 1 && !/\d/.test(e.key)) e.preventDefault();
+  };
+  el.onmousedown = (e) => e.stopPropagation();
 }
 
 function deleteTask(id) {
@@ -439,6 +674,26 @@ function completeTask(id) {
   if (activeTaskId === id) stopTimer();
   const t = tasks.find(t => t.id === id);
   if (t) { t.status = 'completed'; t.completedAt = Date.now(); save(); render(); }
+}
+
+// ---- Notes ----
+let openNotesIds = new Set();
+
+function toggleNotes(id) {
+  if (openNotesIds.has(id)) openNotesIds.delete(id);
+  else openNotesIds.add(id);
+  render();
+  if (openNotesIds.has(id)) {
+    setTimeout(() => {
+      const ta = document.getElementById(`notes-${id}`);
+      if (ta) ta.focus();
+    }, 0);
+  }
+}
+
+function updateNotes(id, value) {
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.notes = value; save(); }
 }
 
 function uncompleteTask(id) {
@@ -611,42 +866,59 @@ function renderList(containerId, items, section) {
   el.innerHTML = items.map(t => {
     const isRunning = t.id === activeTaskId;
     const isBreak = t.type === 'break';
-    const classes = ['task-card', isRunning && 'running', isBreak && 'is-break', section === 'completed' && 'completed-card'].filter(Boolean).join(' ');
+    const notesOpen = openNotesIds.has(t.id);
+    const wrapperClasses = ['task-card-wrapper', isRunning && 'running', isBreak && 'is-break', section === 'completed' && 'completed-card', notesOpen && 'notes-open'].filter(Boolean).join(' ');
+    const classes = 'task-card';
 
     const timeSpentStr = t.timeSpent > 0 ? formatTime(t.timeSpent) : '';
     const badge = section === 'completed'
       ? (timeSpentStr || `${t.minutes}m`)
       : `${t.minutes}m${timeSpentStr ? ' / ' + timeSpentStr : ''}`;
 
+    const notesBtn = `<button onclick="toggleNotes('${t.id}')" title="Notes">${notesOpen ? 'Hide' : 'Notes'}</button>`;
     let actions = '';
     if (section === 'scheduled') {
       actions = isRunning
-        ? ''
+        ? notesBtn
         : `<button onclick="startTimer('${t.id}')">${isBreak ? 'Start' : 'Start'}</button>
            <button class="complete-btn" onclick="completeTask('${t.id}')">Done</button>
+           ${notesBtn}
            <button onclick="moveToBacklog('${t.id}')">Backlog</button>
            <button class="danger" onclick="deleteTask('${t.id}')">Del</button>`;
     } else if (section === 'backlog') {
       actions = `<button onclick="moveToScheduled('${t.id}')">Schedule</button>
+                 ${notesBtn}
                  <button class="danger" onclick="deleteTask('${t.id}')">Del</button>`;
     } else {
       actions = `<button onclick="uncompleteTask('${t.id}')">Undo</button>
+                 ${notesBtn}
                  <button class="danger" onclick="deleteTask('${t.id}')">Del</button>`;
     }
 
+    const notesIndicator = (t.notes && t.notes.trim()) ? '<span class="notes-indicator" title="Has notes">●</span>' : '';
+
     const draggable = section === 'scheduled' ? `draggable="true" ondragstart="onDragStart(event,'${t.id}')" ondragend="onDragEnd(event)" ondragover="onDragOver(event,'${t.id}')" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${t.id}')"` : '';
 
-    return `<div class="${classes}" ${draggable}>
-      ${section === 'scheduled' ? '<span class="drag-handle">&#9776;</span>' : ''}
-      <div class="task-info">
-        <div class="task-name">${escHtml(t.name)}</div>
-        <div class="task-meta">
-          <span>${isBreak ? 'Break' : 'Task'}</span>
-          ${section === 'completed' && t.completedAt ? `<span>${new Date(t.completedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>` : ''}
+    const canEdit = section !== 'completed';
+    const nameClick = canEdit ? `onclick="editTaskName('${t.id}', this)"` : '';
+    const timeClick = canEdit ? `onclick="editTaskTime('${t.id}', this)"` : '';
+
+    return `<div class="${wrapperClasses}">
+      <div class="${classes}" ${draggable}>
+        ${section === 'scheduled' ? '<span class="drag-handle">&#9776;</span>' : ''}
+        <div class="task-info">
+          <div class="task-name" ${nameClick}>${escHtml(t.name)}${notesIndicator}</div>
+          <div class="task-meta">
+            <span>${isBreak ? 'Break' : 'Task'}</span>
+            ${section === 'completed' && t.completedAt ? `<span>${new Date(t.completedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>` : ''}
+          </div>
         </div>
+        <div class="task-time-badge" ${timeClick} title="${canEdit ? 'Click to edit time' : ''}">${badge}</div>
+        <div class="task-actions">${actions}</div>
       </div>
-      <div class="task-time-badge">${badge}</div>
-      <div class="task-actions">${actions}</div>
+      <div class="task-notes-drawer">
+        <textarea id="notes-${t.id}" placeholder="Add notes for this task..." oninput="updateNotes('${t.id}', this.value)" onmousedown="event.stopPropagation()">${escHtml(t.notes || '')}</textarea>
+      </div>
     </div>`;
   }).join('');
 }
